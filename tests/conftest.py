@@ -1,6 +1,6 @@
 import pytest
 
-from ecg_linkage.synthetic import SyntheticConfig, generate
+from tether.synthetic import SyntheticConfig, generate
 
 
 @pytest.fixture(scope="session")

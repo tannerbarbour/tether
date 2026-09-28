@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from ecg_linkage.config import EngagementConfig, SchemaMapping, Thresholds
+from tether.config import EngagementConfig, SchemaMapping, Thresholds
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "engagements" / "example" / "config.yaml"
 

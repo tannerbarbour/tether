@@ -1,4 +1,4 @@
-# ecg_linkage
+# tether
 
 Explainable, AI-assisted entity resolution built on [Splink](https://moj-analytical-services.github.io/splink/)
 (Fellegi-Sunter probabilistic record linkage), for linking provider, organization, employee and
@@ -8,7 +8,7 @@ vendor records across sources that share no unique identifier.
 
 ```bash
 pip install -e ".[dev]"
-ecg-linkage generate-synthetic --out engagements/example/data
+tether generate-synthetic --out engagements/example/data
 pytest
 ```
 

@@ -1,4 +1,4 @@
-"""``ecg-linkage`` command-line interface.
+"""``tether`` command-line interface.
 
 Subcommands are added phase by phase; each is fully functional when present.
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 def _cmd_generate_synthetic(args: argparse.Namespace) -> int:
     import yaml
 
-    from ecg_linkage.synthetic import SyntheticConfig, generate
+    from tether.synthetic import SyntheticConfig, generate
 
     overrides = {}
     if args.settings:
@@ -34,7 +34,7 @@ def _cmd_generate_synthetic(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="ecg-linkage", description="Explainable AI-assisted entity resolution")
+    parser = argparse.ArgumentParser(prog="tether", description="Explainable AI-assisted entity resolution")
     sub = parser.add_subparsers(dest="command", required=True)
 
     gen = sub.add_parser("generate-synthetic", help="Generate synthetic two-source provider data with ground truth")

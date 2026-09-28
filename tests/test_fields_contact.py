@@ -1,4 +1,4 @@
-from ecg_linkage.fields import ComparisonOptions, get_field_type
+from tether.fields import ComparisonOptions, get_field_type
 
 
 def test_phone_formats():

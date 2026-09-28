@@ -1,4 +1,4 @@
-from ecg_linkage.fields import get_field_type
+from tether.fields import get_field_type
 
 
 def test_taxonomy_mapping():

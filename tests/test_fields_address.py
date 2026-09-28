@@ -1,5 +1,5 @@
-from ecg_linkage.fields import ComparisonOptions, get_field_type
-from ecg_linkage.fields.address import normalize_state, normalize_street, parse_address
+from tether.fields import ComparisonOptions, get_field_type
+from tether.fields.address import normalize_state, normalize_street, parse_address
 
 
 def test_parse_single_line():

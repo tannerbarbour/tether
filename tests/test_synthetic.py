@@ -1,7 +1,7 @@
 import pandas as pd
 
-from ecg_linkage.fields.identifiers import is_valid_npi
-from ecg_linkage.synthetic import NoiseConfig, SyntheticConfig, generate
+from tether.fields.identifiers import is_valid_npi
+from tether.synthetic import NoiseConfig, SyntheticConfig, generate
 
 
 def test_deterministic_for_seed():

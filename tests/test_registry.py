@@ -1,7 +1,7 @@
 import pytest
 
-from ecg_linkage.fields import FieldType, get_field_type, list_field_types, register_field_type
-from ecg_linkage.fields.base import ValidationResult
+from tether.fields import FieldType, get_field_type, list_field_types, register_field_type
+from tether.fields.base import ValidationResult
 
 
 def test_builtins_registered():

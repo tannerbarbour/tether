@@ -1,7 +1,7 @@
 # Knowledge base
 
 Reusable, versioned, provenance-tagged assets that accumulate across engagements.
-The pilot stores each table as Parquet/CSV in this directory; the `ecg_linkage.knowledge`
+The pilot stores each table as Parquet/CSV in this directory; the `tether.knowledge`
 interface is what the engine talks to, so the backing store can later point at Fabric
 Lakehouse Delta tables without engine changes.
 

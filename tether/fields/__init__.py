@@ -1,12 +1,12 @@
 """Field types and their registry. Importing this package registers the built-ins."""
 
-from ecg_linkage.fields.base import (
+from tether.fields.base import (
     ComparisonOptions,
     FieldType,
     Parts,
     ValidationResult,
 )
-from ecg_linkage.fields.registry import (
+from tether.fields.registry import (
     field_type_class,
     get_field_type,
     list_field_types,
@@ -14,7 +14,7 @@ from ecg_linkage.fields.registry import (
 )
 
 # Built-in field types register themselves on import.
-from ecg_linkage.fields import address, contact, identifiers, job_title, org_name, person_name  # noqa: E402,F401
+from tether.fields import address, contact, identifiers, job_title, org_name, person_name  # noqa: E402,F401
 
 __all__ = [
     "ComparisonOptions", "FieldType", "Parts", "ValidationResult",

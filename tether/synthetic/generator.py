@@ -22,9 +22,9 @@ from typing import Any
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field
 
-from ecg_linkage.fields.identifiers import npi_check_digit
-from ecg_linkage.synthetic import pools
-from ecg_linkage.synthetic.noise import abbreviate_org, reformat_phone, reformat_street, typo, vary_case
+from tether.fields.identifiers import npi_check_digit
+from tether.synthetic import pools
+from tether.synthetic.noise import abbreviate_org, reformat_phone, reformat_street, typo, vary_case
 
 
 class NoiseConfig(BaseModel):
@@ -195,7 +195,7 @@ def _make_entities(cfg: SyntheticConfig, rng: random.Random, orgs: list[dict[str
 
 # --------------------------------------------------------------------- noise
 def _nickname_for(first: str, rng: random.Random) -> str | None:
-    from ecg_linkage.fields.person_name import _nicknamer
+    from tether.fields.person_name import _nicknamer
 
     options = sorted(_nicknamer().nicknames_of(first.lower()))
     options = [o for o in options if len(o) >= 3]

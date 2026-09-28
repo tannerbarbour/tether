@@ -8,9 +8,9 @@ from typing import Any, ClassVar
 
 from nameparser import HumanName
 
-from ecg_linkage.fields._text import basic_clean, phonetic
-from ecg_linkage.fields.base import ComparisonOptions, FieldType, Parts, ValidationResult
-from ecg_linkage.fields.registry import register_field_type
+from tether.fields._text import basic_clean, phonetic
+from tether.fields.base import ComparisonOptions, FieldType, Parts, ValidationResult
+from tether.fields.registry import register_field_type
 
 GENERATIONAL_SUFFIXES = {"JR", "SR", "II", "III", "IV", "V"}
 CREDENTIALS = {

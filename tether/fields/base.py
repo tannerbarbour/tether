@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Mapping
 
 import pandas as pd
 
-from ecg_linkage.fields._text import to_text
+from tether.fields._text import to_text
 
 if TYPE_CHECKING:  # Splink is imported lazily so field modules stay cheap to import.
     from splink.internals.comparison_creator import ComparisonCreator

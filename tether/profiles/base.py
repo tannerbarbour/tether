@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from importlib.metadata import entry_points
 from typing import Any, Literal, Mapping
 
-from ecg_linkage.fields.base import ComparisonOptions, FieldType
-from ecg_linkage.fields.registry import field_type_class, get_field_type
+from tether.fields.base import ComparisonOptions, FieldType
+from tether.fields.registry import field_type_class, get_field_type
 
 FieldRole = Literal["identifier", "primary", "supporting", "report_only"]
 """
@@ -182,7 +182,7 @@ def _load_entry_points() -> None:
     if _EP_LOADED:
         return
     _EP_LOADED = True
-    for ep in entry_points(group="ecg_linkage.profiles"):
+    for ep in entry_points(group="tether.profiles"):
         obj = ep.load()
         if isinstance(obj, EntityProfile) and obj.name not in _PROFILES:
             register_profile(obj)

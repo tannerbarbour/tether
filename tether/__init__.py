@@ -1,4 +1,4 @@
-"""ecg_linkage: explainable, AI-assisted entity resolution built on Splink.
+"""tether: explainable, AI-assisted entity resolution built on Splink.
 
 Three tiers of knowledge are kept strictly separate:
 

@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from typing import Any, ClassVar
 
-from ecg_linkage.fields._text import digits_only
-from ecg_linkage.fields.base import ComparisonOptions, FieldType, Parts, ValidationResult
-from ecg_linkage.fields.registry import register_field_type
+from tether.fields._text import digits_only
+from tether.fields.base import ComparisonOptions, FieldType, Parts, ValidationResult
+from tether.fields.registry import register_field_type
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@([^@\s]+\.[^@\s]+)$")
 _DOMAIN_RE = re.compile(r"^[a-z0-9.-]+\.[a-z]{2,}$")

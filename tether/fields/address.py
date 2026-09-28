@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from typing import Any, ClassVar, Mapping
 
-from ecg_linkage.fields._text import basic_clean, digits_only, normalize_whitespace
-from ecg_linkage.fields.base import ComparisonOptions, FieldType, Parts, ValidationResult
-from ecg_linkage.fields.registry import register_field_type
+from tether.fields._text import basic_clean, digits_only, normalize_whitespace
+from tether.fields.base import ComparisonOptions, FieldType, Parts, ValidationResult
+from tether.fields.registry import register_field_type
 
 STATE_CODES: dict[str, str] = {
     "ALABAMA": "AL", "ALASKA": "AK", "ARIZONA": "AZ", "ARKANSAS": "AR", "CALIFORNIA": "CA",

@@ -1,4 +1,4 @@
-from ecg_linkage.cli import main
+from tether.cli import main
 
 
 def test_generate_synthetic_cli(tmp_path, capsys):

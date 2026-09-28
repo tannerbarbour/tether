@@ -1,7 +1,7 @@
 import pandas as pd
 
-from ecg_linkage.fields import ComparisonOptions, get_field_type
-from ecg_linkage.fields.person_name import name_variants, parse_person_name
+from tether.fields import ComparisonOptions, get_field_type
+from tether.fields.person_name import name_variants, parse_person_name
 
 
 def test_parse_first_middle_last_with_title_and_credential():

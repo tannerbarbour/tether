@@ -5,9 +5,9 @@ from __future__ import annotations
 import re
 from typing import Any, ClassVar, Mapping
 
-from ecg_linkage.fields._text import basic_clean, normalize_whitespace, phonetic, strip_accents
-from ecg_linkage.fields.base import ComparisonOptions, FieldType, Parts, ValidationResult
-from ecg_linkage.fields.registry import register_field_type
+from tether.fields._text import basic_clean, normalize_whitespace, phonetic, strip_accents
+from tether.fields.base import ComparisonOptions, FieldType, Parts, ValidationResult
+from tether.fields.registry import register_field_type
 
 LEGAL_SUFFIXES: tuple[str, ...] = (
     "INCORPORATED", "INC", "LLC", "L L C", "PLLC", "P L L C", "CORPORATION", "CORP",

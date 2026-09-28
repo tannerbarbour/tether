@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 import re
 
-from ecg_linkage.synthetic.pools import DIRECTIONALS, ORG_ABBREVIATIONS, STREET_TYPES
+from tether.synthetic.pools import DIRECTIONALS, ORG_ABBREVIATIONS, STREET_TYPES
 
 _KEYBOARD_NEIGHBOURS = {
     "a": "qwsz", "b": "vghn", "c": "xdfv", "d": "serfcx", "e": "wsdr", "f": "drtgvc", "g": "ftyhbv",

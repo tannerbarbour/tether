@@ -1,7 +1,7 @@
 import pytest
 
-from ecg_linkage.fields import ComparisonOptions, get_field_type
-from ecg_linkage.fields.identifiers import is_valid_ein, is_valid_npi, npi_check_digit
+from tether.fields import ComparisonOptions, get_field_type
+from tether.fields.identifiers import is_valid_ein, is_valid_npi, npi_check_digit
 
 
 def test_npi_check_digit_known_example():

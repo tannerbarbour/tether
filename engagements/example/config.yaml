@@ -1,6 +1,6 @@
 # Example engagement: link a provider roster to a claims extract (synthetic data).
 # Paths are relative to this file. Generate the data with:
-#   ecg-linkage generate-synthetic --out engagements/example/data
+#   tether generate-synthetic --out engagements/example/data
 engagement:
   id: example
   client: Example Health

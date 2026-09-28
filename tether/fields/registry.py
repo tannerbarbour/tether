@@ -1,7 +1,7 @@
 """Registry of FieldType classes.
 
 Built-in field types register themselves with ``@register_field_type`` at import
-time. External packages contribute via the ``ecg_linkage.field_types`` entry-point
+time. External packages contribute via the ``tether.field_types`` entry-point
 group, so new kinds of fields never require touching engine code.
 """
 
@@ -10,7 +10,7 @@ from __future__ import annotations
 from importlib.metadata import entry_points
 from typing import Callable, TypeVar
 
-from ecg_linkage.fields.base import FieldType
+from tether.fields.base import FieldType
 
 _REGISTRY: dict[str, type[FieldType]] = {}
 _ENTRY_POINTS_LOADED = False
@@ -34,7 +34,7 @@ def _load_entry_points() -> None:
     if _ENTRY_POINTS_LOADED:
         return
     _ENTRY_POINTS_LOADED = True
-    for ep in entry_points(group="ecg_linkage.field_types"):
+    for ep in entry_points(group="tether.field_types"):
         cls = ep.load()
         if ep.name not in _REGISTRY:
             register_field_type(cls)

@@ -1,7 +1,7 @@
 import pytest
 
-from ecg_linkage.fields import ComparisonOptions, get_field_type
-from ecg_linkage.fields.org_name import apply_aliases, strip_legal_suffix
+from tether.fields import ComparisonOptions, get_field_type
+from tether.fields.org_name import apply_aliases, strip_legal_suffix
 
 
 @pytest.mark.parametrize(
@@ -36,8 +36,8 @@ def test_alias_phrases_before_tokens():
 
 
 def test_custom_aliases_merge_with_defaults():
-    ft = get_field_type("org_name", aliases={"ECG": "EXAMPLE CONSULTING GROUP"})
-    assert ft.process({"value": "ECG Med Ctr"})["clean"] == "EXAMPLE CONSULTING GROUP MEDICAL CENTER"
+    ft = get_field_type("org_name", aliases={"TCG": "TETHER CONSULTING GROUP"})
+    assert ft.process({"value": "TCG Med Ctr"})["clean"] == "TETHER CONSULTING GROUP MEDICAL CENTER"
 
 
 def test_invalid():

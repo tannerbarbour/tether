@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ecg_linkage.profiles.base import (
+from tether.profiles.base import (
     BlockingRule,
     DeterministicRule,
     EntityProfile,

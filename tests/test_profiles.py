@@ -1,6 +1,6 @@
 import pytest
 
-from ecg_linkage.profiles import BlockingRule, get_profile, list_profiles
+from tether.profiles import BlockingRule, get_profile, list_profiles
 
 
 def test_profiles_registered():
