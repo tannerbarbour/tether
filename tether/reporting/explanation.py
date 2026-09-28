@@ -11,9 +11,18 @@ import pandas as pd
 from tether.matching.pipeline import LinkageResult
 from tether.reporting.html import esc, page, table, tiles
 
-VEGA_HEAD = ("<script src='https://cdn.jsdelivr.net/npm/vega@5'></script>"
-             "<script src='https://cdn.jsdelivr.net/npm/vega-lite@5'></script>"
-             "<script src='https://cdn.jsdelivr.net/npm/vega-embed@6'></script>")
+def vega_inline_head() -> str:
+    """Inline the Vega / Vega-Lite / vega-embed bundles Splink ships, so reports render offline."""
+    import splink
+
+    folder = Path(splink.__file__).parent / "internals" / "files" / "external_js"
+    parts = []
+    for prefix in ("vega@", "vega-lite@", "vega-embed@"):
+        f = sorted(folder.glob(prefix + "*"))
+        if not f:
+            raise FileNotFoundError(f"Splink JS bundle {prefix}* not found in {folder}")
+        parts.append("<script>" + f[-1].read_text(encoding="utf-8") + "</script>")
+    return "".join(parts)
 
 
 def parameter_table(settings_dict: dict) -> pd.DataFrame:
@@ -100,7 +109,7 @@ def render_explanation_report(result: LinkageResult, out_path: str | Path, seed:
     script = "<script>" + "".join(
         f"vegaEmbed('#chart-{cid}', {_json(spec)}, {{actions:false}});" for cid, spec in charts) + "</script>"
     html_out = page("Match explanation report", f"engagement {cfg.engagement.id} · {cfg.engagement.client}",
-                    "".join(body) + script, VEGA_HEAD if charts else "")
+                    "".join(body) + script, vega_inline_head() if charts else "")
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html_out, encoding="utf-8")

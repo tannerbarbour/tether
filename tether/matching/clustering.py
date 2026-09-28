@@ -90,9 +90,19 @@ def split_violating_clusters(
 ) -> tuple[pd.DataFrame, list[dict]]:
     """Split clusters that (transitively) contain conflicting constrained values.
 
-    For each violating cluster: seed one sub-cluster per distinct constrained value, then
-    attach every remaining member to the seed it has the strongest edge into (records
-    with no edge to any seed become singletons). Returns (membership, split log).
+    For each violating cluster:
+
+    1. **Seed** one sub-cluster per distinct constrained value (all records carrying that value).
+    2. **Propagate** in passes. In every pass each still-unassigned member looks at its edges to
+       members assigned in *previous* passes and joins the sub-cluster behind its strongest edge.
+       Members two or more hops from any seed are therefore reached through their neighbours
+       (A(npi 1) - B - C: B joins A in pass 1, C joins via B in pass 2); assignment within a
+       pass depends only on the previous pass, so member order does not matter.
+    3. **Ties** (equal probability to two sub-clusters) are broken deterministically toward the
+       sub-cluster whose seed value sorts first, and counted in the log.
+    4. Members with no path of edges to any seed become singletons (also counted).
+
+    Returns (membership, split log).
     """
     if membership.empty or not constraints:
         return membership, []
@@ -108,23 +118,39 @@ def split_violating_clusters(
         distinct = member.groupby("cluster_id")["_v"].nunique(dropna=True)
         for cid in distinct[distinct > 1].index:
             members = member.loc[member["cluster_id"] == cid]
-            seeds = members.dropna(subset=["_v"]).groupby("_v")["unique_id"].apply(list).to_dict()
             assignment: dict[str, str] = {}
-            for value, uids in seeds.items():
-                for uid in uids:
+            for value, grp in members.dropna(subset=["_v"]).groupby("_v"):
+                for uid in grp["unique_id"]:
                     assignment[uid] = f"{cid}#{value}"
-            local_edges = edge_index[edge_index["a"].isin(members["unique_id"]) & edge_index["b"].isin(assignment)]
-            for uid in members.loc[members["_v"].isna(), "unique_id"]:
-                cand = local_edges[local_edges["a"] == uid]
+            unassigned = set(members.loc[members["_v"].isna(), "unique_id"])
+            local = edge_index[edge_index["a"].isin(unassigned) & edge_index["b"].isin(members["unique_id"])]
+            n_ties = n_multi_hop = 0
+            passes = 0
+            while unassigned:
+                passes += 1
+                cand = local[local["a"].isin(unassigned) & local["b"].isin(assignment)].copy()
                 if cand.empty:
-                    assignment[uid] = f"{cid}#{uid}"
-                else:
-                    best = cand.sort_values("match_probability", ascending=False).iloc[0]["b"]
-                    assignment[uid] = assignment[best]
+                    break
+                cand["target"] = cand["b"].map(assignment)
+                cand = cand.sort_values(["a", "match_probability", "target"], ascending=[True, False, True])
+                newly: dict[str, str] = {}
+                for uid, grp in cand.groupby("a", sort=False):
+                    best = grp.iloc[0]
+                    top = grp[grp["match_probability"] == best["match_probability"]]
+                    if top["target"].nunique() > 1:
+                        n_ties += 1
+                    newly[uid] = best["target"]
+                    if passes > 1:
+                        n_multi_hop += 1
+                assignment.update(newly)
+                unassigned -= set(newly)
+            for uid in sorted(unassigned):
+                assignment[uid] = f"{cid}#{uid}"
             member.loc[member["cluster_id"] == cid, "cluster_id"] = member.loc[
                 member["cluster_id"] == cid, "unique_id"].map(assignment)
             log.append({"constraint": c.column, "original_cluster": cid, "n_records": len(members),
-                        "n_subclusters": len(set(assignment.values()))})
+                        "n_subclusters": len(set(assignment.values())), "n_multi_hop_assignments": n_multi_hop,
+                        "n_ties": n_ties, "n_singletons": len(unassigned), "passes": passes})
     return member.drop(columns="_v"), log
 
 

@@ -87,7 +87,8 @@ def test_tuning_on_separate_seed(tmp_path):
 
     cfg = _engagement(tmp_path / "t", 15, "eng_t", tmp_path / "kb")
     t = tune_thresholds(cfg, seed=99, n_entities=120, workdir=tmp_path / "tune")
-    assert t.tuning_seed == 99 and 0.5 <= t.auto_link <= t.cluster < 1
+    assert t.tuning_seed == 99 and 0.5 < t.auto_link <= t.cluster < 1
+    assert {"queue_size", "false_auto_links", "expected_cost_minutes"} <= set(t.auto_link_sweep.columns)
     th = t.thresholds(cfg.thresholds.review_lower)
     assert th.cluster >= th.auto_link
     assert t.save(tmp_path / "tuned.yaml").exists()

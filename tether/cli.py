@@ -63,12 +63,12 @@ def _cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
-def _evaluate_config(cfg, truth, baseline_threshold: float, ablate_nppes: bool, tuning=None):
+def _evaluate_config(cfg, truth, baseline_threshold: float, ablate_nppes: bool, tuning=None, kb_write: bool = False):
     from tether.matching.baseline import baseline_npi_name_scores, baseline_scores
     from tether.matching.pipeline import run_linkage
     from tether.reporting.evaluation import cluster_metrics_vs_truth, evaluate
 
-    result = run_linkage(cfg)
+    result = run_linkage(cfg, kb_write=kb_write)
     records = result.prepared.all_records
     records = records[records["source_dataset"].isin(set(truth["source"]))]
     baselines = {
@@ -76,12 +76,10 @@ def _evaluate_config(cfg, truth, baseline_threshold: float, ablate_nppes: bool, 
         "baseline: NPI exact + name fuzzy": (baseline_npi_name_scores(records), baseline_threshold),
     }
     report = evaluate(truth, result.predictions, result.crosswalk, result.edges, deterministic_pairs=result.deterministic_pairs,
-                      baselines=baselines, auto_link=cfg.thresholds.auto_link, cluster_threshold=cfg.thresholds.cluster)
+                      baselines=baselines, auto_link=cfg.thresholds.auto_link, cluster_threshold=cfg.thresholds.cluster,
+                      review_queue=result.review_queue)
     if tuning is not None:
-        report.extras["tuning"] = {"tuning_seed": tuning.tuning_seed, "n_entities": tuning.n_entities,
-                                   "auto_link": tuning.auto_link, "cluster": tuning.cluster,
-                                   "auto_link_sweep": tuning.auto_link_sweep.to_dict("records"),
-                                   "cluster_sweep": tuning.cluster_sweep.to_dict("records")}
+        report.extras["tuning"] = tuning.as_dict()
     label = "with NPPES Type 2 invalidation" if result.stats["nppes_enrichment"] else "without NPPES enrichment"
     report.ablations.append({"name": f"pipeline crosswalk ({label})", "threshold": cfg.thresholds.cluster,
                              **{k: report.cluster[k] for k in ("precision", "recall", "f1", "tp", "fp", "fn")},
@@ -92,8 +90,7 @@ def _evaluate_config(cfg, truth, baseline_threshold: float, ablate_nppes: bool, 
     if ablate_nppes and result.stats["nppes_enrichment"]:
         alt = cfg.model_copy(deep=True)
         alt.reference.enrich_from_nppes = False
-        alt.matching.save_m_to_knowledge_base = False
-        alt_result = run_linkage(alt)
+        alt_result = run_linkage(alt, kb_write=False)
         cw = alt_result.crosswalk[alt_result.crosswalk["source"].isin(set(truth["source"]))]
         cm = cluster_metrics_vs_truth(cw, truth)
         report.ablations.append({"name": "pipeline crosswalk (without NPPES enrichment)", "threshold": cfg.thresholds.cluster,
@@ -126,7 +123,7 @@ def _cmd_evaluate(args: argparse.Namespace) -> int:
         tuning.save(out_dir / "tuned_thresholds.yaml")
         cfg.thresholds = tuning.thresholds(cfg.thresholds.review_lower)
         print(f"tuned on seed {args.tune_seed}: auto_link={tuning.auto_link} cluster={tuning.cluster}")
-    result, report = _evaluate_config(cfg, truth, args.baseline_threshold, args.ablate_nppes, tuning)
+    result, report = _evaluate_config(cfg, truth, args.baseline_threshold, args.ablate_nppes, tuning, kb_write=args.write_kb)
     result.write(out_dir)
     (out_dir / "evaluation.md").write_text(report.to_markdown(), encoding="utf-8")
     for m in report.methods:
@@ -155,8 +152,9 @@ def _cmd_tune(args: argparse.Namespace) -> int:
     out_dir = Path(args.out or cfg.resolve(cfg.output.dir))
     t = tune_thresholds(cfg, args.seed, args.n_entities, out_dir / f"tuning_seed{args.seed}")
     path = t.save(out_dir / "tuned_thresholds.yaml")
-    print(f"tuned on synthetic seed {args.seed} ({args.n_entities} entities): auto_link={t.auto_link} cluster={t.cluster}")
-    print(t.cluster_sweep.to_string(index=False))
+    print(f"tuned on synthetic seed {args.seed} ({args.n_entities} entities): auto_link={t.auto_link} (cost-minimising; "
+          f"F1-max would be {t.f1_best_auto_link}) cluster={t.cluster}")
+    print(t.auto_link_sweep[["threshold", "precision", "recall", "f1", "queue_size", "false_auto_links", "expected_cost_minutes"]].to_string(index=False))
     print(f"written: {path}")
     return 0
 
@@ -279,6 +277,8 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--tune-seed", type=int, dest="tune_seed", help="Tune thresholds on a separate synthetic seed first")
     ev.add_argument("--tune-entities", type=int, default=1000, dest="tune_entities")
     ev.add_argument("--ablate-nppes", action="store_true", dest="ablate_nppes", help="Also run without NPPES enrichment")
+    ev.add_argument("--write-kb", action="store_true", dest="write_kb",
+                    help="Allow the evaluation run to write model params / run history to the knowledge base (default: read-only)")
     ev.set_defaults(func=_cmd_evaluate)
 
     tu = sub.add_parser("tune", help="Tune auto_link / cluster thresholds on a separate synthetic seed")

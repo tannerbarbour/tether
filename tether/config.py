@@ -163,6 +163,7 @@ class ReferenceConfig(_Strict):
 class OutputConfig(_Strict):
     dir: Path = Path("output")
     explanation_sample_pairs: int = Field(25, ge=0)
+    rejected_audit_sample: int = Field(25, ge=0, description="Random rejected pairs routed to review as an audit sample")
 
 
 class EngagementConfig(_Strict):

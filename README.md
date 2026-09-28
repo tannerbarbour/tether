@@ -69,10 +69,13 @@ two name disagreements. The pilot handles this in the profile layer: EIN and ema
 rejects any pair with no name agreement at any level (deterministic pairs are exempt).
 
 **Hard-constraint clustering.** Edges between records with different valid NPIs are removed
-before clustering. A component may still hold two NPIs through a bridge record with no NPI; each
-such component is split by seeding one sub-cluster per NPI and attaching every other member to the
-seed it has the strongest edge into (members with no edge to a seed become singletons). Splits are
-logged and shown in the explanation report.
+before clustering. A component may still hold two NPIs through bridge records with no NPI. Each such
+component is split by seeding one sub-cluster per NPI value and then propagating in passes: in every
+pass each unassigned member joins the sub-cluster behind its strongest edge to a member assigned in
+an earlier pass, so members several hops from a seed are reached through their neighbours and member
+order cannot change the result. Ties are broken toward the sub-cluster whose seed value sorts first
+(deterministic); members with no edge path to any seed become singletons. Each split logs records,
+sub-clusters, multi-hop assignments, ties and singletons.
 
 **Cluster confidence** is the weakest attachment: for each member, its strongest edge into the
 cluster; the cluster takes the minimum.
@@ -110,11 +113,20 @@ reads Census Gazetteer files for the distance levels.
 
 ## Evaluation
 
-`tether evaluate` compares two baselines (name+org fuzzy ratio; NPI exact + name fuzzy) with the
-pipeline: pairwise P/R/F1 and PR curves, the same on **non-deterministic pairs only**, crosswalk
-(cluster pairwise) metrics, entity exact-match rate, blocking recall, misses by noise operator, the
-NPPES ablation, and thresholds tuned on a **separate synthetic seed** (`--tune-seed`). The report
-labels its data as synthetic and its LLM as mock, and ends with the real-data labeling plan.
+`tether evaluate` (knowledge-base read-only unless `--write-kb`) compares two baselines (name+org
+fuzzy ratio; NPI exact + name fuzzy) with the pipeline: pairwise P/R/F1 and PR curves; the same on
+the **residual (non-deterministic) subset** with baselines re-tuned on it and the pipeline at its
+out-of-sample thresholds; crosswalk (cluster pairwise) metrics, entity exact-match rate, blocking
+recall, misses by noise operator; the NPPES ablation (`--ablate-nppes`); ground truth of the review
+queue by reason; and thresholds tuned on a **separate synthetic seed** (`--tune-seed`) by expected
+analyst cost (review minutes vs false-link minutes, `tether.matching.tune.CostModel`) with a
+break-even statement against the F1-maximising threshold. Reports embed Vega from Splink's bundled
+files, so they render offline. The report labels its data as synthetic and its LLM as mock, and
+ends with the real-data labeling plan.
+
+The review queue carries a `review_reason`: `score_band`, `same_npi_name_conflict` (same valid NPI
+but names contradict; routed to review rather than dropped) and `rejected_audit_sample` (random
+rejected pairs so the name-agreement constraint is audited every run).
 
 ## Out of scope for the pilot (seams exist)
 

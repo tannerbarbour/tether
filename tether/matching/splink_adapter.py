@@ -12,6 +12,7 @@ Responsibilities:
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -148,6 +149,20 @@ def deterministic_rule_sql(rule: DeterministicRule, dialect: str) -> str:
     return " AND ".join(eq + [render_guard(g, dialect) for g in rule.guards])
 
 
+class _LogCapture(logging.Handler):
+    """Capture the first integer matched by ``pattern`` from log records."""
+
+    def __init__(self, pattern: str):
+        super().__init__(level=logging.DEBUG)
+        self.pattern = re.compile(pattern)
+        self.value: int | None = None
+
+    def emit(self, record: logging.LogRecord) -> None:
+        m = self.pattern.search(record.getMessage())
+        if m and self.value is None:
+            self.value = int(m.group(1))
+
+
 # --------------------------------------------------------------- the linker
 @dataclass
 class TrainedModel:
@@ -237,12 +252,22 @@ class SplinkMatcher:
                 creator = brl.CustomRule(deterministic_rule_sql(rule, self.dialect))
             else:
                 creator = blocking_rule_creator(rule)
-            session = self.linker.training.estimate_parameters_using_expectation_maximisation(creator)
+            capture = _LogCapture(r"EM converged after (\d+) iterations")
+            splink_logger = logging.getLogger("splink")
+            splink_logger.addHandler(capture)
+            try:
+                session = self.linker.training.estimate_parameters_using_expectation_maximisation(creator)
+            finally:
+                splink_logger.removeHandler(capture)
             desc = getattr(rule, "description", None) or str(rule)
+            # Splink records parameter states for iteration 0 (start) .. N; "converged after N".
             history = getattr(session, "_iteration_history_records", None) or []
             iters = [int(getattr(r, "iteration", r.get("iteration", 0) if isinstance(r, dict) else 0)) for r in history]
-            iterations = (max(iters) + 1) if iters else 0
-            self.training_log.append({"step": "em", "blocking": desc, "iterations": iterations})
+            from_records = max(iters) if iters else 0
+            from_log = capture.value
+            self.training_log.append({"step": "em", "blocking": desc, "iterations": from_log if from_log is not None else from_records,
+                                      "iterations_from_records": from_records, "iterations_from_log": from_log,
+                                      "converged": from_log is not None})
 
     def apply_probability_floor(self, floor: float) -> int:
         """Clamp trained m/u to ``[floor, 1 - floor]`` and rebuild the linker from the result.

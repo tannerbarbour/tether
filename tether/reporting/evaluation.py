@@ -154,20 +154,39 @@ class EvaluationReport:
         return pd.DataFrame(rows)
 
     def nondeterministic_table(self) -> pd.DataFrame:
+        """Residual subset: baselines re-tuned on the subset; pipeline at its out-of-sample thresholds."""
         rows = []
         for m in self.methods:
-            rows.append({"method": f"{m.name} @ chosen", **m.nondeterministic_at_threshold})
-            rows.append({"method": f"{m.name} @ best F1", **m.nondeterministic_best})
+            if m.name.startswith("pipeline"):
+                rows.append({"method": f"{m.name} @ out-of-sample auto_link", **m.nondeterministic_at_threshold})
+                rows.append({"method": f"{m.name} @ residual-best (in-sample, reference only)", **m.nondeterministic_best})
+            else:
+                rows.append({"method": f"{m.name} @ re-tuned on residual", **m.nondeterministic_best})
         return pd.DataFrame(rows)
+
+    def review_queue_table(self) -> pd.DataFrame:
+        return self.extras.get("review_queue_truth", pd.DataFrame())
 
     def to_markdown(self) -> str:
         lines = ["# Evaluation: baselines vs pipeline (synthetic data)", "", self.summary_table().to_markdown(index=False), "",
-                 "## Non-deterministic pairs only (deterministic NPI links removed from truth and predictions)", "",
+                 "## Residual (non-deterministic) pairs: deterministic NPI links removed from truth and predictions", "",
                  self.nondeterministic_table().to_markdown(index=False), "",
+                 "## Review queue ground truth", "", self.review_queue_table().to_markdown(index=False), "",
                  f"Cluster metrics: {self.cluster}", f"Blocking: {self.blocking}", f"Deterministic pre-pass: {self.deterministic}", ""]
         if len(self.misses):
             lines += ["Noise operators on missed true pairs (crosswalk):", "", self.misses.to_markdown(index=False), ""]
         return "\n".join(lines)
+
+
+def review_queue_truth(review_queue: pd.DataFrame, truth: pd.DataFrame) -> pd.DataFrame:
+    """Ground-truth status of the review queue by ``review_reason``."""
+    if review_queue is None or len(review_queue) == 0:
+        return pd.DataFrame(columns=["review_reason", "pairs", "true_matches", "true_share"])
+    tp = true_pairs_from_truth(truth)
+    q = review_queue.assign(_true=pair_key(review_queue["unique_id_l"], review_queue["unique_id_r"]).isin(tp).values)
+    g = q.groupby("review_reason")["_true"].agg(pairs="size", true_matches="sum")
+    g["true_share"] = (g["true_matches"] / g["pairs"]).round(4)
+    return g.reset_index()
 
 
 def _restrict(df: pd.DataFrame, sources: set[str]) -> pd.DataFrame:
@@ -184,6 +203,7 @@ def evaluate(
     baselines: dict[str, tuple[pd.DataFrame, float]],
     auto_link: float,
     cluster_threshold: float,
+    review_queue: pd.DataFrame | None = None,
 ) -> EvaluationReport:
     """Compare pipeline outputs and baselines against ground truth.
 
@@ -218,5 +238,6 @@ def evaluate(
         deterministic={"pairs": len(det_keys), "precision": round(det_tp / len(det_keys), 4) if det_keys else None,
                        "recall": round(det_tp / len(tp_set), 4) if tp_set else None},
         misses=misses_by_noise(missed, truth),
-        extras={"cluster_threshold": cluster_threshold, "auto_link": auto_link},
+        extras={"cluster_threshold": cluster_threshold, "auto_link": auto_link,
+                "review_queue_truth": review_queue_truth(review_queue, truth)},
     )

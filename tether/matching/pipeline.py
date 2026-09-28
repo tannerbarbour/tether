@@ -105,6 +105,7 @@ def run_linkage(
     m_probabilities: MProbabilities | None = None,
     keep_matcher: bool = False,
     knowledge_base: KnowledgeBase | None = None,
+    kb_write: bool = True,
 ) -> LinkageResult:
     """Execute the full matching pipeline for an engagement config.
 
@@ -185,26 +186,29 @@ def run_linkage(
     if hub_source:
         crosswalk = hub_entity_ids(crosswalk, hub_source)
     accepted_predictions = predictions.loc[~predictions.index.isin(rejected.index)]
-    review = build_review_queue(accepted_predictions, th.review_lower, th.auto_link, DISPLAY_COLUMNS)
-    model = matcher.trained_model()
     npi_col = f"{npi_fields[0]}_std" if npi_fields else None
+    review = build_review_queue(accepted_predictions, th.review_lower, th.auto_link, DISPLAY_COLUMNS,
+                                rejected=rejected, npi_column=npi_col, audit_sample=config.output.rejected_audit_sample,
+                                seed=matching.random_seed)
+    model = matcher.trained_model()
     n_rejected_sharing_npi = int(((rejected[f"{npi_col}_l"].notna()) & (rejected[f"{npi_col}_l"] == rejected[f"{npi_col}_r"])).sum()) \
         if npi_col and f"{npi_col}_l" in rejected.columns and len(rejected) else 0
     lookup_effect = _lookup_effect(prep, deps)
 
-    # ---- knowledge base writes
+    # ---- knowledge base writes (skipped entirely when kb_write is False, e.g. evaluation runs)
     n_labeled = 0
-    if matching.save_m_to_knowledge_base:
+    if kb_write and matching.save_m_to_knowledge_base:
         kb.save_model_params(model.m_probabilities, profile.name, schema_hash, eng, source_types, scope, run_id)
         det_vectors = det_pairs.merge(predictions, on=["unique_id_l", "unique_id_r"], how="inner")
         n_labeled = kb.add_labeled_pairs(det_vectors, 1, "deterministic_rule", profile.name, schema_hash, eng, scope)
-    for src in config.sources:
-        if src.mapping:
-            from tether.config import SchemaMapping
+    if kb_write:
+        for src in config.sources:
+            if src.mapping:
+                from tether.config import SchemaMapping
 
-            kb.register_mapping(SchemaMapping.load(config.resolve(src.mapping)), eng, scope)
-    for snap in snapshots:
-        kb.register_reference_snapshot(snap, eng)
+                kb.register_mapping(SchemaMapping.load(config.resolve(src.mapping)), eng, scope)
+        for snap in snapshots:
+            kb.register_reference_snapshot(snap, eng)
 
     stats = {
         "run_id": run_id, "engagement": eng, "profile": profile.name, "link_type": matching.link_type,
@@ -219,6 +223,8 @@ def run_linkage(
         "n_edges": int(len(edges)), "n_edges_at_cluster_threshold": int((edges["match_probability"] >= th.cluster).sum()),
         "n_clusters": int(membership["cluster_id"].nunique()), "n_clusters_split": len(split_log),
         "n_review_queue": int(len(review)),
+        "review_queue_by_reason": review["review_reason"].value_counts().to_dict() if len(review) else {},
+        "kb_write": kb_write,
         "n_flagged_records": int((metrics["flags"].str.contains("oversized|low_density")).sum()),
         "n_labeled_pairs_stored": int(n_labeled),
         "n_rejected_sharing_valid_npi": n_rejected_sharing_npi,
@@ -227,9 +233,10 @@ def run_linkage(
         "em_iterations": [t.get("iterations") for t in model.training_log if t.get("step") == "em"],
         "runtime_seconds": round(time.time() - t0, 2),
     }
-    kb.record_run({"run_id": run_id, "engagement": eng, "profile": profile.name, "config_hash": _config_hash(config),
-                   "knowledge_base_version": kb_version_before, "reference_snapshots": stats["reference_snapshots"],
-                   "comparison_schema_hash": schema_hash, "stats": stats}, eng)
+    if kb_write:
+        kb.record_run({"run_id": run_id, "engagement": eng, "profile": profile.name, "config_hash": _config_hash(config),
+                       "knowledge_base_version": kb_version_before, "reference_snapshots": stats["reference_snapshots"],
+                       "comparison_schema_hash": schema_hash, "stats": stats}, eng)
     return LinkageResult(
         config=config, prepared=prep, deterministic_pairs=det_pairs, predictions=predictions,
         rejected_pairs=rejected, conflicting_edges=conflicting, edges=edges, membership=membership,

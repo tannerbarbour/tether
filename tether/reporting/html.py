@@ -69,21 +69,29 @@ def tiles(items: Iterable[tuple[str, str, str]]) -> str:
         for k, v, d in items) + "</div>"
 
 
-def line_chart_svg(series: list[dict], x_label: str, y_label: str, width: int = 720, height: int = 400) -> str:
-    """Inline SVG multi-line chart on [0,1]x[0,1] with legend, direct end labels and point tooltips.
+def line_chart_svg(series: list[dict], x_label: str, y_label: str, width: int = 720, height: int = 400,
+                   x_domain: tuple[float, float] = (0.0, 1.0), y_domain: tuple[float, float] = (0.0, 1.0),
+                   marker_x: float | None = None, marker_label: str = "") -> str:
+    """Inline SVG multi-line chart with legend, direct end labels, point tooltips, optional vertical marker.
 
     ``series`` items: ``{"name": str, "color": css color, "points": [(x, y, label), ...]}``.
     """
-    ml, mr, mt, mb = 52, 110, 16, 44
+    ml, mr, mt, mb = 60, 120, 16, 44
     pw, ph = width - ml - mr, height - mt - mb
-    sx = lambda x: ml + x * pw  # noqa: E731
-    sy = lambda y: mt + (1 - y) * ph  # noqa: E731
+    x0, x1 = x_domain
+    y0, y1 = y_domain
+    sx = lambda x: ml + (x - x0) / (x1 - x0) * pw  # noqa: E731
+    sy = lambda y: mt + (1 - (y - y0) / (y1 - y0)) * ph  # noqa: E731
     parts = [f"<svg viewBox='0 0 {width} {height}' width='100%' role='img' aria-label='{esc(y_label)} vs {esc(x_label)}'>"]
-    for t in (0, 0.2, 0.4, 0.6, 0.8, 1.0):
-        parts.append(f"<line class='grid' x1='{sx(0)}' x2='{sx(1)}' y1='{sy(t)}' y2='{sy(t)}' stroke-width='1'/>")
-        parts.append(f"<text x='{ml - 8}' y='{sy(t) + 4}' text-anchor='end'>{t:.1f}</text>")
-        parts.append(f"<text x='{sx(t)}' y='{mt + ph + 18}' text-anchor='middle'>{t:.1f}</text>")
-    parts.append(f"<line class='axis' x1='{sx(0)}' x2='{sx(1)}' y1='{sy(0)}' y2='{sy(0)}' stroke-width='1'/>")
+    for i in range(6):
+        ty, tx = y0 + (y1 - y0) * i / 5, x0 + (x1 - x0) * i / 5
+        parts.append(f"<line class='grid' x1='{sx(x0)}' x2='{sx(x1)}' y1='{sy(ty)}' y2='{sy(ty)}' stroke-width='1'/>")
+        parts.append(f"<text x='{ml - 8}' y='{sy(ty) + 4}' text-anchor='end'>{ty:g}</text>")
+        parts.append(f"<text x='{sx(tx)}' y='{mt + ph + 18}' text-anchor='middle'>{tx:g}</text>")
+    parts.append(f"<line class='axis' x1='{sx(x0)}' x2='{sx(x1)}' y1='{sy(y0)}' y2='{sy(y0)}' stroke-width='1'/>")
+    if marker_x is not None:
+        parts.append(f"<line x1='{sx(marker_x):.1f}' x2='{sx(marker_x):.1f}' y1='{mt}' y2='{mt + ph}' stroke='var(--muted)' stroke-dasharray='4 3'/>"
+                     f"<text x='{sx(marker_x) + 4:.1f}' y='{mt + 12}'>{esc(marker_label)}</text>")
     parts.append(f"<text x='{ml + pw / 2}' y='{height - 8}' text-anchor='middle'>{esc(x_label)}</text>")
     parts.append(f"<text transform='translate(14,{mt + ph / 2}) rotate(-90)' text-anchor='middle'>{esc(y_label)}</text>")
     for i, s in enumerate(series):

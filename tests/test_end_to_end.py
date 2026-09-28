@@ -57,7 +57,7 @@ def test_pipeline_beats_baseline(engagement):
     assert pipe.best["f1"] > report.method("baseline: name+org fuzzy").best["f1"]
     assert pipe.nondeterministic_best["f1"] > report.method("baseline: NPI exact + name fuzzy").nondeterministic_best["f1"]
     assert report.cluster["precision"] > 0.95 and 0 < report.cluster["entity_exact_match_rate"] <= 1
-    assert "Non-deterministic" in report.to_markdown()
+    assert "Residual (non-deterministic)" in report.to_markdown()
 
 
 def test_write_and_model_roundtrip(engagement, tmp_path):
@@ -83,6 +83,9 @@ def test_cli_run_and_evaluate(engagement, tmp_path, capsys):
     assert (tmp_path / "run" / "explanation_report.html").exists()
     html = (tmp_path / "ev" / "evaluation_report.html").read_text()
     assert "SYNTHETIC DATA" in html and "MOCK LLM" in html and "without NPPES enrichment" in html
+    assert "same_npi_name_conflict" in html
+    ex_html = (tmp_path / "run" / "explanation_report.html").read_text()
+    assert "cdn.jsdelivr" not in ex_html and "vegaEmbed" in ex_html and len(ex_html) > 500_000
     assert "baseline" in capsys.readouterr().out
 
 

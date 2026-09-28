@@ -14,13 +14,19 @@ SPLIT_ALGORITHM = """
 <li>Before clustering, every edge whose two records carry <em>different</em> non-null values of a
 constrained column (validated NPI) is removed.</li>
 <li>Connected components are computed over the remaining edges at the cluster threshold.</li>
-<li>A component can still contain two NPIs through a bridge record with no NPI
-(A<sub>npi 1</sub> — B<sub>no npi</sub> — C<sub>npi 2</sub>). For each such component, one
-sub-cluster is seeded per distinct NPI value; every remaining member is attached to the seed it has
-the strongest edge into (highest match probability); a member with no edge to any seed becomes a
-singleton.</li>
-<li>Each split is logged (original cluster, record count, sub-clusters) and surfaced in the
-explanation report.</li>
+<li>A component can still contain two NPIs through bridge records with no NPI
+(A<sub>npi 1</sub> — B — C — D<sub>npi 2</sub>). For each such component one sub-cluster is
+<strong>seeded</strong> per distinct NPI value.</li>
+<li><strong>Propagation in passes.</strong> In each pass, every still-unassigned member looks only at its
+edges to members assigned in <em>earlier</em> passes and joins the sub-cluster behind its strongest
+edge. A member with no direct edge to a seed is reached through its neighbours in a later pass
+(B joins A in pass 1; C, whose only edges go to B and D, compares its B-edge and D-edge in pass 2).
+Because a pass depends only on the previous pass, member order cannot change the result.</li>
+<li><strong>Ties</strong> (equal match probability toward two sub-clusters) are broken toward the sub-cluster
+whose seed value sorts first, so the outcome is deterministic and reproducible; the count of ties is logged.</li>
+<li>Members with no edge path to any seed become singletons (counted in the log). Every split logs the
+original cluster, record count, sub-clusters, multi-hop assignments, ties and singletons; the explanation
+report shows the log.</li>
 </ol>
 """
 
@@ -59,7 +65,7 @@ def render_evaluation_report(report: EvaluationReport, run_stats: dict, out_path
     body = [f"<p class='note'><strong>Data: {data_label}.</strong> Every number on this page comes from generated provider records "
             f"with a known crosswalk; the noise model is configurable and documented in the repository. "
             f"<strong>{llm_label}.</strong> No real client data and no production LLM calls were involved. "
-            + (f"Thresholds were tuned on a separate synthetic seed ({tuned['tuning_seed']}) and evaluated on this one." if tuned
+            + (f"Thresholds were tuned on a separate synthetic seed ({tuned['tuning_seed']}) by expected analyst cost and evaluated on this one." if tuned
                else "Thresholds are the engagement config defaults (not tuned on this data).") + "</p>"]
     body.append(tiles([
         ("current approach F1", f"{base.best['f1']:.3f}", f"name+org fuzzy, best threshold {base.best['threshold']:.0f}"),
@@ -76,9 +82,10 @@ def render_evaluation_report(report: EvaluationReport, run_stats: dict, out_path
                 f"come out as exactly one cluster. Validated identifiers link {report.deterministic['pairs']:,} pairs deterministically "
                 f"at precision {report.deterministic['precision']}; blocking keeps {report.blocking['blocking_recall']:.1%} of true pairs "
                 f"while scoring {report.blocking['candidates']:,} candidates instead of every pair.</p>")
-    body.append("<h2>Where identifiers do not decide: non-deterministic pairs only</h2>"
+    body.append("<h2>Where identifiers do not decide: residual (non-deterministic) pairs only</h2>"
                 "<p class='note'>Every pair the deterministic NPI rule links is removed from both truth and predictions. "
-                "This isolates the probabilistic model's contribution and is the fair comparison with the baselines, which also benefit from NPI.</p>")
+                "Baselines are re-tuned on this residual subset (their best threshold on it); the pipeline is shown at the "
+                "auto_link threshold tuned out of sample, with its residual-best row as an in-sample reference only.</p>")
     body.append(table(report.nondeterministic_table()))
     body.append("<h2>Precision and recall at every threshold</h2>")
     body.append("<div class='chart'>" + line_chart_svg([
@@ -87,6 +94,51 @@ def render_evaluation_report(report: EvaluationReport, run_stats: dict, out_path
         {"name": "pipeline", "color": PALETTE["blue"], "points": _pr_points(pipe.curve)},
     ], "recall", "precision") + "</div>")
     body.append("<h2>All operating points</h2>" + table(report.summary_table()))
+    if tuned:
+        al = pd.DataFrame(tuned["auto_link_sweep"])
+        chosen = tuned["thresholds"]["auto_link"]
+        row = al[al["threshold"] == chosen].iloc[0]
+        f1row = al[al["threshold"] == tuned["f1_best_auto_link"]].iloc[0]
+        cm = tuned["cost_model"]
+        body.append("<h2>Choosing the auto-link threshold on operating cost (tuning seed)</h2>")
+        body.append("<div class='chart'>" + line_chart_svg([
+            {"name": "precision", "color": PALETTE["blue"], "points": [(float(r.threshold), float(r.precision), f"t={r.threshold}: {r.precision:.3f}") for r in al.itertuples()]},
+            {"name": "recall", "color": PALETTE["orange"], "points": [(float(r.threshold), float(r.recall), f"t={r.threshold}: {r.recall:.3f}") for r in al.itertuples()]},
+            {"name": "F1", "color": PALETTE["aqua"], "points": [(float(r.threshold), float(r.f1), f"t={r.threshold}: {r.f1:.3f}") for r in al.itertuples()]},
+        ], "auto_link threshold", "score", x_domain=(0.5, 1.0), marker_x=chosen, marker_label=f"chosen {chosen}") + "</div>")
+        qmax = float(max(al["queue_size"].max(), al["false_auto_links"].max(), 1))
+        body.append("<div class='chart'>" + line_chart_svg([
+            {"name": "review queue", "color": PALETTE["blue"], "points": [(float(r.threshold), float(r.queue_size), f"t={r.threshold}: {r.queue_size} pairs") for r in al.itertuples()]},
+            {"name": "false auto-links", "color": PALETTE["orange"], "points": [(float(r.threshold), float(r.false_auto_links), f"t={r.threshold}: {r.false_auto_links}") for r in al.itertuples()]},
+        ], "auto_link threshold", "pairs", x_domain=(0.5, 1.0), y_domain=(0.0, qmax), marker_x=chosen, marker_label=f"chosen {chosen}") + "</div>")
+        cmax = float(al["expected_cost_minutes"].max())
+        body.append("<div class='chart'>" + line_chart_svg([
+            {"name": "expected cost (min)", "color": PALETTE["blue"], "points": [(float(r.threshold), float(r.expected_cost_minutes), f"t={r.threshold}: {r.expected_cost_minutes:.0f} min") for r in al.itertuples()]},
+        ], "auto_link threshold", "analyst minutes", x_domain=(0.5, 1.0), y_domain=(0.0, cmax), marker_x=chosen, marker_label=f"chosen {chosen}") + "</div>")
+        body.append(f"<p>Unit costs assumed: {cm['review_minutes_per_pair']:g} min to review a queued pair, "
+                    f"{cm['false_link_minutes']:g} min to find and undo a false auto-link in a deliverable, "
+                    f"{cm['missed_link_minutes']:g} min per missed link (constant across thresholds: pairs below the review floor). "
+                    f"At the chosen threshold {chosen}: {int(row['false_auto_links'])} false auto-links, "
+                    f"{int(row['queue_size'])} pairs queued (of which {int(row['queue_true_pairs'])} true), "
+                    f"expected cost {row['expected_cost_minutes']:.0f} min, F1 {row['f1']:.3f}. "
+                    f"The F1-maximising threshold {tuned['f1_best_auto_link']} would give {int(f1row['false_auto_links'])} false auto-links, "
+                    f"a queue of {int(f1row['queue_size'])} and expected cost {f1row['expected_cost_minutes']:.0f} min, F1 {f1row['f1']:.3f}. "
+                    f"The threshold is chosen to minimise expected analyst cost under these unit costs; change them to move it.</p>")
+        d_fp = int(f1row["false_auto_links"]) - int(row["false_auto_links"])
+        d_q = int(row["queue_size"]) - int(f1row["queue_size"])
+        if d_fp > 0 and d_q > 0:
+            body.append(f"<p><strong>Break-even.</strong> Moving from the F1-maximising threshold {tuned['f1_best_auto_link']} to {chosen} "
+                        f"avoids {d_fp} false auto-links at the price of {d_q} extra reviewed pairs. The stricter threshold pays for itself "
+                        f"whenever undoing one false link costs more than {d_q / d_fp:.1f} pair reviews; below that ratio the F1-maximising "
+                        f"threshold is the cheaper operating point.</p>")
+        elif chosen == tuned["f1_best_auto_link"]:
+            body.append("<p><strong>Break-even.</strong> The cost-minimising and F1-maximising thresholds coincide under these unit costs.</p>")
+        body.append(table(al[["threshold", "precision", "recall", "f1", "queue_size", "queue_true_pairs", "false_auto_links", "expected_cost_minutes"]]))
+    body.append("<h2>Review queue: what the analyst would see, with ground truth</h2>"
+                "<p class='note'>score_band: pairs between the review floor and auto_link. same_npi_name_conflict: pairs sharing a valid "
+                "Type 1 NPI but rejected by the name-agreement constraint (routed to review instead of silently dropped). "
+                "rejected_audit_sample: a random sample of other rejected pairs so the constraint is audited every run.</p>")
+    body.append(table(report.review_queue_table()))
     if report.ablations:
         body.append("<h2>Ablation: NPPES Type 2 invalidation</h2>"
                     "<p class='note'>Same data, same thresholds; the only difference is whether NPIs that NPPES identifies as "
@@ -108,16 +160,15 @@ def render_evaluation_report(report: EvaluationReport, run_stats: dict, out_path
                 f"built-in alias table, so matching results are unchanged by design; on real data the Azure model can add "
                 f"client-specific aliases the built-in table lacks.</p>")
     body.append(f"<p class='note'>Pairs rejected by the name-agreement constraint that nevertheless share a valid Type 1 NPI: "
-                f"<strong>{run_stats.get('n_rejected_sharing_valid_npi', 0)}</strong> (these are the same-NPI, contradicting-name pairs "
-                f"the deterministic guard also refused; they belong in review, not in the crosswalk).</p>")
+                f"<strong>{run_stats.get('n_rejected_sharing_valid_npi', 0)}</strong>. They are routed to the review queue as "
+                f"same_npi_name_conflict; their ground-truth status is in the review-queue table above.</p>")
     body.append("<h2>Where the pipeline still misses</h2><p class='note'>Noise operators present on records of true pairs the crosswalk did not join.</p>")
     body.append(table(report.misses))
     if tuned:
-        body.append("<h2>Threshold tuning (separate seed)</h2>"
+        body.append("<h2>Cluster threshold sweep (tuning seed, crosswalk F1)</h2>"
                     f"<p class='note'>Tuned on synthetic seed {tuned['tuning_seed']} with {tuned['n_entities']} entities; "
-                    f"chosen auto_link {tuned['auto_link']}, cluster {tuned['cluster']}.</p>"
-                    "<h3>auto_link sweep (pairwise F1)</h3>" + table(pd.DataFrame(tuned["auto_link_sweep"]))
-                    + "<h3>cluster threshold sweep (crosswalk F1)</h3>" + table(pd.DataFrame(tuned["cluster_sweep"])))
+                    f"chosen cluster threshold {tuned['thresholds']['cluster']} (constrained to be at least auto_link).</p>"
+                    + table(pd.DataFrame(tuned["cluster_sweep"])))
     body.append("<h2>Next step: real-data labeling plan</h2>" + LABELING_PLAN)
     body.append("<h2>Run facts</h2>")
     facts = pd.DataFrame([{"item": k, "value": (", ".join(f"{a}={b}" for a, b in v.items()) if isinstance(v, dict) else v)}
