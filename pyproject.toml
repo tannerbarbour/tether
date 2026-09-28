@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecg-linkage"
+version = "0.1.0"
+description = "Explainable, AI-assisted entity resolution pipeline built on Splink"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+dependencies = [
+    "splink>=5,<6",
+    "duckdb>=1.1",
+    "pandas>=2.2",
+    "pyarrow>=15",
+    "pydantic>=2.5",
+    "pyyaml>=6",
+    "jellyfish>=1.0",
+    "doublemetaphone>=1.1",
+    "nameparser>=1.1",
+    "usaddress>=0.5",
+    "rapidfuzz>=3.5",
+    "nicknames>=0.1",
+    "openai>=1.30",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov", "ruff"]
+spark = ["pyspark>=3.4"]
+
+[project.scripts]
+ecg-linkage = "ecg_linkage.cli:main"
+
+[project.entry-points."ecg_linkage.field_types"]
+# Third-party packages can register additional FieldType classes here, e.g.
+# my_field = "my_package.fields:MyFieldType"
+
+[project.entry-points."ecg_linkage.profiles"]
+# Third-party packages can register additional EntityProfile objects here.
+
+[tool.setuptools.packages.find]
+include = ["ecg_linkage*"]
+
+[tool.setuptools.package-data]
+ecg_linkage = ["**/*.yaml", "**/*.csv", "**/*.html", "**/*.j2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

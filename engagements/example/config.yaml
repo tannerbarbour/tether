@@ -1,0 +1,63 @@
+# Example engagement: link a provider roster to a claims extract (synthetic data).
+# Paths are relative to this file. Generate the data with:
+#   ecg-linkage generate-synthetic --out engagements/example/data
+engagement:
+  id: example
+  client: Example Health
+  description: Pilot - link provider roster to claims rendering providers
+  analyst: analyst@example.com
+  reuse_scope: client_scoped
+
+profile: provider
+
+sources:
+  - name: roster
+    path: data/roster.csv
+    format: csv
+    record_id_column: "Provider ID"
+    source_type: roster
+    mapping: mappings/roster.yaml
+  - name: claims
+    path: data/claims.csv
+    format: csv
+    record_id_column: rendering_prov_id
+    source_type: claims
+    mapping: mappings/claims.yaml
+
+thresholds:
+  auto_link: 0.90      # pairs at/above: accepted
+  review_lower: 0.50   # [review_lower, auto_link): analyst review queue
+  cluster: 0.95        # edges used for clustering (stricter than pairwise acceptance)
+
+cluster_qa:
+  max_cluster_size: 6
+  min_edge_density: 0.5
+
+matching:
+  link_type: link_and_dedupe
+  max_pairs_for_u: 1000000
+  em_max_iterations: 25
+  load_m_from_knowledge_base: true
+  save_m_to_knowledge_base: true
+  fields:
+    title:
+      role: report_only   # correlated with org/address; kept out of the model
+
+llm:
+  provider: mock          # azure | mock  (Azure settings come from environment variables)
+  sample_rows: 20
+  redact_columns: []      # e.g. [Salary, "Home Address"]
+
+knowledge_base:
+  path: ../../knowledge_base
+  use_promoted_only: true
+
+reference:
+  nppes_path: data/nppes_sample.csv
+  zip_centroids_path: data/zip_centroids.csv
+  enrich_from_nppes: true
+  hub_link_via_nppes: false
+
+output:
+  dir: output
+  explanation_sample_pairs: 25

@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.venv/
+engagements/*/output/
+engagements/*/data/
+!engagements/example/data/.gitkeep
+knowledge_base/**/*.parquet
+knowledge_base/llm_log/
+.env
