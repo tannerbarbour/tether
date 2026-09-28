@@ -76,3 +76,18 @@ def test_cli_run_and_evaluate(engagement, tmp_path, capsys):
     assert main(["evaluate", "--config", str(config_path), "--truth", str(truth_path), "--out", str(tmp_path / "ev")]) == 0
     assert (tmp_path / "ev" / "evaluation.md").exists()
     assert "baseline" in capsys.readouterr().out
+
+
+def test_cli_propose_and_standardize(engagement, tmp_path):
+    from tether.cli import main
+
+    cfg, _, _ = engagement
+    config_path = cfg.config_dir / "config.yaml"
+    assert main(["propose-mapping", "--config", str(config_path), "--out", str(tmp_path)]) == 0
+    from tether.config import SchemaMapping
+
+    m = SchemaMapping.load(tmp_path / "claims.yaml")
+    assert m.status == "proposed" and m.as_dict()["prov_last_name"] == "name_last"
+    assert main(["standardize-values", "--config", str(config_path)]) == 0
+    assert (cfg.resolve(cfg.knowledge_base.path) / "lookup_org_aliases.csv").exists()
+    assert (cfg.resolve(cfg.knowledge_base.path) / "llm_log" / "llm_calls.jsonl").exists()

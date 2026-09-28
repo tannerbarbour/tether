@@ -74,7 +74,9 @@ def run_linkage(
 ) -> LinkageResult:
     """Execute the full matching pipeline for an engagement config."""
     t0 = time.time()
-    deps = dict(dependencies or {})
+    from tether.ingestion.lookups import lookup_dependencies
+
+    deps = {**lookup_dependencies(config), **(dependencies or {})}
     if "zip_centroids" not in deps and config.reference.zip_centroids_path:
         from tether.reference.zip_centroids import load_zip_centroids
 

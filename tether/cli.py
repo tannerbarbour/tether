@@ -93,6 +93,70 @@ def _cmd_evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_propose_mapping(args: argparse.Namespace) -> int:
+    from tether.config import EngagementConfig, SchemaMapping
+    from tether.ingestion import LLMCallLogger, make_client, propose_mapping, read_table
+    from tether.ingestion.lookups import llm_log_dir
+    from tether.profiles import get_profile
+
+    cfg = EngagementConfig.load(args.config)
+    profile = get_profile(cfg.profile)
+    client = make_client(cfg.llm)
+    logger = LLMCallLogger(llm_log_dir(cfg))
+    kb = Path(cfg.resolve(cfg.knowledge_base.path))
+    examples = []
+    for p in sorted((kb / "schema_mappings").glob("*.yaml")) if (kb / "schema_mappings").exists() else []:
+        m = SchemaMapping.load(p)
+        if m.status == "approved" and m.profile == profile.name:
+            examples.append(m)
+    wanted = [s for s in cfg.sources if not args.source or s.name in args.source]
+    for src in wanted:
+        raw = read_table(cfg.resolve(src.path), src.format, src.encoding)
+        proposal = propose_mapping(
+            raw, src.name, profile, client, record_id_column=src.record_id_column, examples=examples,
+            sample_rows=cfg.llm.sample_rows, redact_columns=cfg.llm.redact_columns, logger=logger,
+        )
+        out = Path(args.out) / f"{src.name}.yaml" if args.out else (
+            cfg.resolve(src.mapping) if src.mapping else cfg.config_dir / "mappings" / f"{src.name}.yaml")
+        if out.exists() and not args.overwrite:
+            out = out.with_name(out.stem + ".proposed.yaml")
+        proposal.save(out)
+        n_llm = sum(1 for c in proposal.columns if c.rationale and c.rationale.startswith("["))
+        print(f"{src.name}: {len(proposal.columns)} columns mapped ({n_llm} via {client.provider}), "
+              f"{len(proposal.unmapped)} unmapped -> {out}")
+        for c in proposal.columns:
+            print(f"    {c.source_column!r:>28} -> {c.target:<16} {c.confidence:.2f}  {c.rationale or ''}")
+        if proposal.unmapped:
+            print(f"    unmapped: {proposal.unmapped}")
+    print("review each file, set status: approved, then run `tether run`.")
+    return 0
+
+
+def _cmd_standardize_values(args: argparse.Namespace) -> int:
+    from tether.config import EngagementConfig
+    from tether.ingestion import LLMCallLogger, load_source, make_client, standardize_values
+    from tether.ingestion.lookups import llm_log_dir, open_lookup
+    from tether.profiles import get_profile
+
+    cfg = EngagementConfig.load(args.config)
+    profile = get_profile(cfg.profile)
+    client = make_client(cfg.llm)
+    logger = LLMCallLogger(llm_log_dir(cfg))
+    frames = [load_source(s, cfg, profile) for s in cfg.sources]
+    kinds = {"job_title": ("job_title", cfg.llm.standardize_titles), "org_alias": ("org_name", cfg.llm.standardize_org_aliases)}
+    for kind, (field_type, enabled) in kinds.items():
+        if not enabled:
+            continue
+        fields = [n for n, s in profile.fields.items() if s.field_type == field_type]
+        values = [v for df in frames for f in fields for v in df[f].dropna().tolist()]
+        cache = open_lookup(cfg, kind)
+        stats = standardize_values(values, kind, client, cache, batch_size=cfg.llm.max_distinct_values_per_call, logger=logger)
+        path = cache.save()
+        print(f"{kind}: {stats['n_distinct']} distinct values, {stats['n_cached']} cached, {stats['n_builtin']} built-in, "
+              f"{stats['n_llm']} from {client.provider} in {stats['calls']} call(s), {stats['n_rejected']} rejected -> {path}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="tether", description="Explainable AI-assisted entity resolution")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -103,6 +167,17 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("--n-entities", type=int, dest="n_entities")
     gen.add_argument("--seed", type=int)
     gen.set_defaults(func=_cmd_generate_synthetic)
+
+    pm = sub.add_parser("propose-mapping", help="Propose canonical column mappings for the configured sources")
+    pm.add_argument("--config", type=Path, required=True)
+    pm.add_argument("--source", action="append", help="Limit to a source name (repeatable)")
+    pm.add_argument("--out", type=Path, help="Directory for proposed YAML files (default: the config's mapping paths)")
+    pm.add_argument("--overwrite", action="store_true", help="Overwrite an existing mapping file")
+    pm.set_defaults(func=_cmd_propose_mapping)
+
+    sv = sub.add_parser("standardize-values", help="Standardize distinct job titles / org aliases into lookup tables")
+    sv.add_argument("--config", type=Path, required=True)
+    sv.set_defaults(func=_cmd_standardize_values)
 
     run = sub.add_parser("run", help="Run the linkage pipeline for an engagement config")
     run.add_argument("--config", type=Path, required=True)

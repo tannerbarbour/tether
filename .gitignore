@@ -12,3 +12,4 @@ engagements/*/data/
 knowledge_base/**/*.parquet
 knowledge_base/llm_log/
 .env
+knowledge_base/lookup_*.csv
