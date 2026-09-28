@@ -1,10 +1,12 @@
-"""ZIP centroid lookup from a Census ZCTA gazetteer-style file (offline)."""
+"""ZIP centroid reference (Census ZCTA Gazetteer format, offline)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 import pandas as pd
+
+from tether.reference.base import ReferenceSource
 
 
 def load_zip_centroids(path: str | Path) -> dict[str, tuple[float, float]]:
@@ -26,3 +28,16 @@ def load_zip_centroids(path: str | Path) -> dict[str, tuple[float, float]]:
         except (TypeError, ValueError):
             continue
     return out
+
+
+class ZipCentroidReference(ReferenceSource):
+    name = "zip_centroids"
+    license = "Public domain (U.S. Census Bureau Gazetteer Files, ZCTA)"
+    license_url = "https://www.census.gov/geographies/reference-files/time-series/geo/gazetteer-files.html"
+
+    def _load(self) -> pd.DataFrame:
+        items = load_zip_centroids(self.path).items()
+        return pd.DataFrame([{"zip5": z, "lat": la, "lon": lo} for z, (la, lo) in items])
+
+    def as_dict(self) -> dict[str, tuple[float, float]]:
+        return {r.zip5: (r.lat, r.lon) for r in self.frame().itertuples()}

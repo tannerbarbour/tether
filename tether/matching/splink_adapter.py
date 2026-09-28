@@ -240,7 +240,8 @@ class SplinkMatcher:
             session = self.linker.training.estimate_parameters_using_expectation_maximisation(creator)
             desc = getattr(rule, "description", None) or str(rule)
             history = getattr(session, "_iteration_history_records", None) or []
-            self.training_log.append({"step": "em", "blocking": desc, "iterations": len(history)})
+            iterations = max((int(r.get("iteration", 0)) for r in history if isinstance(r, dict)), default=len(history))
+            self.training_log.append({"step": "em", "blocking": desc, "iterations": iterations})
 
     def apply_probability_floor(self, floor: float) -> int:
         """Clamp trained m/u to ``[floor, 1 - floor]`` and rebuild the linker from the result.

@@ -1,0 +1,13 @@
+{
+  "version": "011108f8791a",
+  "updated_at": "2026-09-28T20:36:12+00:00",
+  "tables": {
+    "schema_mappings": 2,
+    "lookup_org_aliases": 206,
+    "lookup_titles": 0,
+    "model_params": 52,
+    "labeled_pairs": 553,
+    "run_history": 3,
+    "reference_snapshots": 3
+  }
+}

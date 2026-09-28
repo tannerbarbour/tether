@@ -1,0 +1,53 @@
+asset_id,engagement,reviewer,created_at,version,reuse_scope,state,profile,comparison_schema_hash,source_type,comparison,level,m_probability,run_id
+e95d76fae42c,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,name_first,exact first name,0.6749131824090812,b4719025b80f
+0d4e8d9bd02d,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,name_first,nickname / formal-name equivalent,0.15724417076927813,b4719025b80f
+3dc6e1caedea,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,name_first,first JW >= 0.92,0.05300365306533226,b4719025b80f
+2878703435b3,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,name_first,first JW >= 0.85,0.0194346727898081,b4719025b80f
+d9b747bc88ad,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,name_first,All other comparisons,0.09540432096650042,b4719025b80f
+4fdcba5a3cb7,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,name_last,exact last name,0.833924141404012,b4719025b80f
+508fdf681760,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,name_last,first/last swapped,0.04770328527241797,b4719025b80f
+bd054e0c46d8,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,name_last,last JW >= 0.92,0.06890474898669254,b4719025b80f
+46454d9146e6,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,name_last,last JW >= 0.85,0.014134307485201452,b4719025b80f
+f4fdb71113ab,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,name_last,All other comparisons,0.03533351685167589,b4719025b80f
+d0c943b4448d,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,org,exact raw org name,0.1458993578424428,b4719025b80f
+44f89602b034,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,org,exact cleaned org name,0.7514877408115637,b4719025b80f
+bebbddd0c702,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,org,org JW >= 0.92,0.0951661406675176,b4719025b80f
+3a621ec7c392,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,org,org JW >= 0.85,0.005447906421479923,b4719025b80f
+e45263222ec7,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,org,org phonetic match,0.0018159689731208095,b4719025b80f
+6ac4bd6679cb,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,org,All other comparisons,0.001,b4719025b80f
+419bc2754aab,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,address,exact full address,0.7921043354904158,b4719025b80f
+870e16407bd2,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,address,similar street + ZIP,0.03887118067672684,b4719025b80f
+e7eff57e0d2c,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,address,same ZIP5,0.0018159647234651498,b4719025b80f
+11562516f270,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,address,ZIP centroids within 10 km,0.001766788435117703,b4719025b80f
+8e86844c3224,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,address,same state,0.013640262619058752,b4719025b80f
+d996abb8c7cd,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,address,All other comparisons,0.1526848622727746,b4719025b80f
+162da0eaa22e,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,npi,exact valid NPI,0.999,b4719025b80f
+f110b369db48,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,npi,All other comparisons,0.001,b4719025b80f
+52c13844987f,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,phone,exact phone,0.999,b4719025b80f
+7b016b3db856,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,claims,phone,All other comparisons,0.001,b4719025b80f
+f0c648ef9b31,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,name_first,exact first name,0.6749131824090812,b4719025b80f
+a6d66a52d06f,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,name_first,nickname / formal-name equivalent,0.15724417076927813,b4719025b80f
+76b1e248d429,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,name_first,first JW >= 0.92,0.05300365306533226,b4719025b80f
+6be74175666a,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,name_first,first JW >= 0.85,0.0194346727898081,b4719025b80f
+13bea50d2299,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,name_first,All other comparisons,0.09540432096650042,b4719025b80f
+b146a5f93403,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,name_last,exact last name,0.833924141404012,b4719025b80f
+d2e0af35c4d8,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,name_last,first/last swapped,0.04770328527241797,b4719025b80f
+7eef7fa02d1e,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,name_last,last JW >= 0.92,0.06890474898669254,b4719025b80f
+13024ca8840b,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,name_last,last JW >= 0.85,0.014134307485201452,b4719025b80f
+bb2ce039aeb0,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,name_last,All other comparisons,0.03533351685167589,b4719025b80f
+eff361981dd9,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,org,exact raw org name,0.1458993578424428,b4719025b80f
+4ccea89ba8ac,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,org,exact cleaned org name,0.7514877408115637,b4719025b80f
+f3d17952bf93,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,org,org JW >= 0.92,0.0951661406675176,b4719025b80f
+98354820685f,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,org,org JW >= 0.85,0.005447906421479923,b4719025b80f
+49ad3768cbfb,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,org,org phonetic match,0.0018159689731208095,b4719025b80f
+7bc0f5c3ece6,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,org,All other comparisons,0.001,b4719025b80f
+e251b1649dff,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,address,exact full address,0.7921043354904158,b4719025b80f
+781db30ac3c5,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,address,similar street + ZIP,0.03887118067672684,b4719025b80f
+9fa93f9f94e8,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,address,same ZIP5,0.0018159647234651498,b4719025b80f
+e1593192b2a6,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,address,ZIP centroids within 10 km,0.001766788435117703,b4719025b80f
+dac47fc192b3,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,address,same state,0.013640262619058752,b4719025b80f
+3340ea483023,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,address,All other comparisons,0.1526848622727746,b4719025b80f
+ae0c4b2768f9,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,npi,exact valid NPI,0.999,b4719025b80f
+6c24cf360ff4,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,npi,All other comparisons,0.001,b4719025b80f
+a3e834784217,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,phone,exact phone,0.999,b4719025b80f
+2cb62d165413,example,,2026-09-28T20:31:14+00:00,1,client_scoped,engagement_local,provider,db4b27d7bc3e,roster,phone,All other comparisons,0.001,b4719025b80f

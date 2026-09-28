@@ -1,7 +1,7 @@
 import pandas as pd
 
-from tether.matching.baseline import baseline_links, baseline_scores
-from tether.reporting.evaluation import cluster_pairwise, pairwise_at_threshold, true_pairs_from_truth
+from tether.matching.baseline import baseline_links, baseline_npi_name_scores, baseline_scores
+from tether.reporting.evaluation import cluster_metrics_vs_truth, pairwise_at_threshold, true_pairs_from_truth
 
 
 def test_baseline_scores_all_pairs_and_cross_only():
@@ -27,4 +27,15 @@ def test_metrics_math():
     m = pairwise_at_threshold(scored, "s", 0.5, tp)
     assert (m["tp"], m["fp"], m["fn"]) == (1, 1, 0) and m["precision"] == 0.5
     cw = pd.DataFrame({"source": ["a", "b", "b"], "source_record_id": ["1", "1", "2"], "entity_id": ["X", "X", "Y"]})
-    assert cluster_pairwise(cw, tp)["f1"] == 1.0
+    cm = cluster_metrics_vs_truth(cw, truth)
+    assert cm["f1"] == 1.0 and cm["entity_exact_match_rate"] == 1.0 and cm["entities_split"] == 0
+    # exclusion of deterministic pairs removes them from truth and predictions alike
+    nd = pairwise_at_threshold(scored, "s", 0.5, tp, exclude={"a:1||b:1"})
+    assert (nd["tp"], nd["fp"], nd["fn"]) == (0, 1, 0)
+
+
+def test_npi_name_baseline_trusts_equal_npi():
+    recs = pd.DataFrame({"unique_id": ["a:1", "b:1", "b:2"], "source_dataset": ["a", "b", "b"],
+                         "name": ["Jane Doe", "Xavier Quinn", "Jane Doe"], "npi_digits": ["1234567893", "1234567893", None]})
+    s = baseline_npi_name_scores(recs).set_index(["unique_id_l", "unique_id_r"])["score"]
+    assert s[("a:1", "b:1")] == 100.0 and s[("a:1", "b:2")] == 100.0 and s[("b:1", "b:2")] < 50

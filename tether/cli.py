@@ -45,17 +45,64 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
     _quiet_splink()
     cfg = EngagementConfig.load(args.config)
-    result = run_linkage(cfg)
-    out_dir = args.out or cfg.resolve(cfg.output.dir)
+    result = run_linkage(cfg, keep_matcher=True)
+    out_dir = Path(args.out or cfg.resolve(cfg.output.dir))
     paths = result.write(out_dir)
+    from tether.reporting.explanation import render_explanation_report
+
+    paths["explanation"] = render_explanation_report(result, out_dir / "explanation_report.html")
     s = result.stats
     print(f"linked {s['n_records']} records from {s['n_sources']} source(s) into {s['n_clusters']} entities "
           f"in {s['runtime_seconds']}s")
     print(f"  deterministic pairs: {s['n_deterministic_pairs']}   probabilistic edges: {s['n_edges']}   "
           f"review queue: {s['n_review_queue']}   flagged records: {s['n_flagged_records']}")
-    for name in ("crosswalk", "review_queue", "model", "stats"):
+    for name in ("crosswalk", "review_queue", "model", "stats", "explanation"):
         print(f"  {name:>12}: {paths[name]}")
+    print(f"  knowledge base version now: {result.stats['knowledge_base_version']} -> "
+          f"{__import__('tether.knowledge', fromlist=['open_knowledge_base']).open_knowledge_base(cfg).version()}")
     return 0
+
+
+def _evaluate_config(cfg, truth, baseline_threshold: float, ablate_nppes: bool, tuning=None):
+    from tether.matching.baseline import baseline_npi_name_scores, baseline_scores
+    from tether.matching.pipeline import run_linkage
+    from tether.reporting.evaluation import cluster_metrics_vs_truth, evaluate
+
+    result = run_linkage(cfg)
+    records = result.prepared.all_records
+    records = records[records["source_dataset"].isin(set(truth["source"]))]
+    baselines = {
+        "baseline: name+org fuzzy": (baseline_scores(records), baseline_threshold),
+        "baseline: NPI exact + name fuzzy": (baseline_npi_name_scores(records), baseline_threshold),
+    }
+    report = evaluate(truth, result.predictions, result.crosswalk, result.edges, deterministic_pairs=result.deterministic_pairs,
+                      baselines=baselines, auto_link=cfg.thresholds.auto_link, cluster_threshold=cfg.thresholds.cluster)
+    if tuning is not None:
+        report.extras["tuning"] = {"tuning_seed": tuning.tuning_seed, "n_entities": tuning.n_entities,
+                                   "auto_link": tuning.auto_link, "cluster": tuning.cluster,
+                                   "auto_link_sweep": tuning.auto_link_sweep.to_dict("records"),
+                                   "cluster_sweep": tuning.cluster_sweep.to_dict("records")}
+    label = "with NPPES Type 2 invalidation" if result.stats["nppes_enrichment"] else "without NPPES enrichment"
+    report.ablations.append({"name": f"pipeline crosswalk ({label})", "threshold": cfg.thresholds.cluster,
+                             **{k: report.cluster[k] for k in ("precision", "recall", "f1", "tp", "fp", "fn")},
+                             "entity_exact_match_rate": report.cluster["entity_exact_match_rate"],
+                             "n_deterministic_pairs": result.stats["n_deterministic_pairs"],
+                             "n_edges_dropped_by_hard_constraints": result.stats["n_edges_dropped_by_hard_constraints"],
+                             "n_clusters_split": result.stats["n_clusters_split"]})
+    if ablate_nppes and result.stats["nppes_enrichment"]:
+        alt = cfg.model_copy(deep=True)
+        alt.reference.enrich_from_nppes = False
+        alt.matching.save_m_to_knowledge_base = False
+        alt_result = run_linkage(alt)
+        cw = alt_result.crosswalk[alt_result.crosswalk["source"].isin(set(truth["source"]))]
+        cm = cluster_metrics_vs_truth(cw, truth)
+        report.ablations.append({"name": "pipeline crosswalk (without NPPES enrichment)", "threshold": cfg.thresholds.cluster,
+                                 **{k: cm[k] for k in ("precision", "recall", "f1", "tp", "fp", "fn")},
+                                 "entity_exact_match_rate": cm["entity_exact_match_rate"],
+                                 "n_deterministic_pairs": alt_result.stats["n_deterministic_pairs"],
+                                 "n_edges_dropped_by_hard_constraints": alt_result.stats["n_edges_dropped_by_hard_constraints"],
+                                 "n_clusters_split": alt_result.stats["n_clusters_split"]})
+    return result, report
 
 
 def _cmd_evaluate(args: argparse.Namespace) -> int:
@@ -64,32 +111,72 @@ def _cmd_evaluate(args: argparse.Namespace) -> int:
     import pandas as pd
 
     from tether.config import EngagementConfig
-    from tether.matching.baseline import baseline_scores
-    from tether.matching.pipeline import run_linkage
-    from tether.reporting.evaluation import evaluate
+    from tether.reporting.evaluation_report import render_evaluation_report
 
     _quiet_splink()
     cfg = EngagementConfig.load(args.config)
     truth = pd.read_csv(args.truth, dtype=str)
-    result = run_linkage(cfg)
     out_dir = Path(args.out or cfg.resolve(cfg.output.dir))
-    result.write(out_dir)
-    baseline = baseline_scores(result.prepared.all_records)
-    report = evaluate(truth, result.predictions, result.crosswalk, result.edges,
-                      deterministic_pairs=result.deterministic_pairs, baseline=baseline,
-                      auto_link=cfg.thresholds.auto_link, cluster_threshold=cfg.thresholds.cluster,
-                      baseline_threshold=args.baseline_threshold)
     out_dir.mkdir(parents=True, exist_ok=True)
+    tuning = None
+    if args.tune_seed is not None:
+        from tether.matching.tune import tune_thresholds
+
+        tuning = tune_thresholds(cfg, args.tune_seed, args.tune_entities, out_dir / f"tuning_seed{args.tune_seed}")
+        tuning.save(out_dir / "tuned_thresholds.yaml")
+        cfg.thresholds = tuning.thresholds(cfg.thresholds.review_lower)
+        print(f"tuned on seed {args.tune_seed}: auto_link={tuning.auto_link} cluster={tuning.cluster}")
+    result, report = _evaluate_config(cfg, truth, args.baseline_threshold, args.ablate_nppes, tuning)
+    result.write(out_dir)
     (out_dir / "evaluation.md").write_text(report.to_markdown(), encoding="utf-8")
-    report.pipeline_pr_curve.to_csv(out_dir / "pr_curve_pipeline.csv", index=False)
-    report.baseline_pr_curve.to_csv(out_dir / "pr_curve_baseline.csv", index=False)
+    for m in report.methods:
+        m.curve.to_csv(out_dir / f"pr_curve_{m.name.replace(' ', '_').replace(':', '').replace('+', 'plus')}.csv", index=False)
     (out_dir / "evaluation.json").write_text(json.dumps({
-        "pipeline_pairwise": report.pipeline_pairwise, "pipeline_cluster": report.pipeline_cluster,
-        "baseline_pairwise": report.baseline_pairwise, "baseline_best": report.baseline_best,
-        "blocking": report.blocking, "deterministic": report.deterministic, "run_stats": result.stats,
+        "data": "synthetic", "llm_provider": cfg.llm.provider,
+        "methods": {m.name: {"at_threshold": m.at_threshold, "best": m.best, "nondeterministic_at_threshold": m.nondeterministic_at_threshold,
+                             "nondeterministic_best": m.nondeterministic_best} for m in report.methods},
+        "cluster": report.cluster, "blocking": report.blocking, "deterministic": report.deterministic,
+        "ablations": report.ablations, "tuning": report.extras.get("tuning"), "run_stats": result.stats,
     }, indent=2, default=str), encoding="utf-8")
+    html_path = render_evaluation_report(report, result.stats, out_dir / "evaluation_report.html", cfg.engagement.id, cfg.llm.provider)
     print(report.to_markdown())
-    print(f"\nwritten: {out_dir / 'evaluation.md'}")
+    if report.ablations:
+        print(pd.DataFrame(report.ablations).to_markdown(index=False))
+    print(f"\nwritten: {out_dir / 'evaluation.md'} and {html_path}")
+    return 0
+
+
+def _cmd_tune(args: argparse.Namespace) -> int:
+    from tether.config import EngagementConfig
+    from tether.matching.tune import tune_thresholds
+
+    _quiet_splink()
+    cfg = EngagementConfig.load(args.config)
+    out_dir = Path(args.out or cfg.resolve(cfg.output.dir))
+    t = tune_thresholds(cfg, args.seed, args.n_entities, out_dir / f"tuning_seed{args.seed}")
+    path = t.save(out_dir / "tuned_thresholds.yaml")
+    print(f"tuned on synthetic seed {args.seed} ({args.n_entities} entities): auto_link={t.auto_link} cluster={t.cluster}")
+    print(t.cluster_sweep.to_string(index=False))
+    print(f"written: {path}")
+    return 0
+
+
+def _cmd_kb(args: argparse.Namespace) -> int:
+    from tether.config import EngagementConfig
+    from tether.knowledge import LocalKnowledgeBase, open_knowledge_base
+
+    kb = open_knowledge_base(EngagementConfig.load(args.config)) if args.config else LocalKnowledgeBase(args.path)
+    if args.kb_command == "status":
+        print(f"knowledge base: {kb.path}  version {kb.version()}")
+        print(kb.status().to_string(index=False))
+    elif args.kb_command == "list":
+        df = kb.read(args.table)
+        cols = [c for c in df.columns if c not in ("mapping_json",)]
+        print(df[cols].tail(args.limit).to_string(index=False) if len(df) else "(empty)")
+    elif args.kb_command == "promote":
+        n = kb.promote(args.table, to_state=args.to, reviewer=args.reviewer, engagement=args.engagement,
+                       asset_ids=args.asset_id, reuse_scope=args.scope)
+        print(f"{n} asset(s) in {args.table} -> {args.to}" + (f" ({args.scope})" if args.scope else ""))
     return 0
 
 
@@ -189,7 +276,35 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--truth", type=Path, required=True, help="CSV with source, source_record_id, entity_id")
     ev.add_argument("--out", type=Path)
     ev.add_argument("--baseline-threshold", type=float, default=85.0, dest="baseline_threshold")
+    ev.add_argument("--tune-seed", type=int, dest="tune_seed", help="Tune thresholds on a separate synthetic seed first")
+    ev.add_argument("--tune-entities", type=int, default=1000, dest="tune_entities")
+    ev.add_argument("--ablate-nppes", action="store_true", dest="ablate_nppes", help="Also run without NPPES enrichment")
     ev.set_defaults(func=_cmd_evaluate)
+
+    tu = sub.add_parser("tune", help="Tune auto_link / cluster thresholds on a separate synthetic seed")
+    tu.add_argument("--config", type=Path, required=True)
+    tu.add_argument("--seed", type=int, required=True)
+    tu.add_argument("--n-entities", type=int, default=1000, dest="n_entities")
+    tu.add_argument("--out", type=Path)
+    tu.set_defaults(func=_cmd_tune)
+
+    kb = sub.add_parser("kb", help="Inspect and promote knowledge-base assets")
+    loc = argparse.ArgumentParser(add_help=False)
+    loc.add_argument("--config", type=Path, help="Engagement config (locates the knowledge base)")
+    loc.add_argument("--path", type=Path, default=Path("knowledge_base"), help="Knowledge base directory if no config")
+    kbs = kb.add_subparsers(dest="kb_command", required=True)
+    kbs.add_parser("status", parents=[loc], help="Row counts by table and promotion state")
+    kl = kbs.add_parser("list", parents=[loc], help="Show rows of a table")
+    kl.add_argument("--table", required=True)
+    kl.add_argument("--limit", type=int, default=20)
+    kp = kbs.add_parser("promote", parents=[loc], help="Advance assets to reviewed / promoted (requires --reviewer)")
+    kp.add_argument("--table", required=True)
+    kp.add_argument("--to", choices=["reviewed", "promoted"], default="reviewed")
+    kp.add_argument("--reviewer", required=True)
+    kp.add_argument("--engagement", help="Promote every eligible asset of this engagement")
+    kp.add_argument("--asset-id", action="append", dest="asset_id", help="Promote specific asset ids (repeatable)")
+    kp.add_argument("--scope", choices=["generic", "client_scoped"], help="Also set reuse scope")
+    kb.set_defaults(func=_cmd_kb)
 
     return parser
 

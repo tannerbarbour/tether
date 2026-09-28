@@ -8,7 +8,7 @@ import pytest
 import yaml
 
 from tether.config import EngagementConfig
-from tether.matching.baseline import baseline_scores
+from tether.matching.baseline import baseline_npi_name_scores, baseline_scores
 from tether.matching.pipeline import run_linkage
 from tether.reporting.evaluation import evaluate
 
@@ -47,13 +47,17 @@ def test_pipeline_outputs_are_consistent(engagement):
 def test_pipeline_beats_baseline(engagement):
     cfg, res, ds = engagement
     base = baseline_scores(res.prepared.all_records)
+    base2 = baseline_npi_name_scores(res.prepared.all_records)
     report = evaluate(ds.truth, res.predictions, res.crosswalk, res.edges, deterministic_pairs=res.deterministic_pairs,
-                      baseline=base, auto_link=cfg.thresholds.auto_link, cluster_threshold=cfg.thresholds.cluster)
+                      baselines={"baseline: name+org fuzzy": (base, 85.0), "baseline: NPI exact + name fuzzy": (base2, 85.0)},
+                      auto_link=cfg.thresholds.auto_link, cluster_threshold=cfg.thresholds.cluster)
     assert report.deterministic["precision"] == 1.0
-    assert report.pipeline_pairwise["f1"] > 0.85
-    assert report.pipeline_pairwise["f1"] > report.baseline_best["f1"]
-    assert report.pipeline_cluster["precision"] > 0.95
-    assert "pipeline" in report.to_markdown()
+    pipe = report.method("pipeline pairwise")
+    assert pipe.at_threshold["f1"] > 0.85
+    assert pipe.best["f1"] > report.method("baseline: name+org fuzzy").best["f1"]
+    assert pipe.nondeterministic_best["f1"] > report.method("baseline: NPI exact + name fuzzy").nondeterministic_best["f1"]
+    assert report.cluster["precision"] > 0.95 and 0 < report.cluster["entity_exact_match_rate"] <= 1
+    assert "Non-deterministic" in report.to_markdown()
 
 
 def test_write_and_model_roundtrip(engagement, tmp_path):
@@ -73,8 +77,12 @@ def test_cli_run_and_evaluate(engagement, tmp_path, capsys):
     assert main(["run", "--config", str(config_path), "--out", str(tmp_path / "run")]) == 0
     assert (tmp_path / "run" / "crosswalk.csv").exists()
     truth_path = cfg.config_dir / "data" / "truth.csv"
-    assert main(["evaluate", "--config", str(config_path), "--truth", str(truth_path), "--out", str(tmp_path / "ev")]) == 0
-    assert (tmp_path / "ev" / "evaluation.md").exists()
+    assert main(["evaluate", "--config", str(config_path), "--truth", str(truth_path), "--out", str(tmp_path / "ev"),
+                 "--ablate-nppes"]) == 0
+    assert (tmp_path / "ev" / "evaluation.md").exists() and (tmp_path / "ev" / "evaluation_report.html").exists()
+    assert (tmp_path / "run" / "explanation_report.html").exists()
+    html = (tmp_path / "ev" / "evaluation_report.html").read_text()
+    assert "SYNTHETIC DATA" in html and "MOCK LLM" in html and "without NPPES enrichment" in html
     assert "baseline" in capsys.readouterr().out
 
 
