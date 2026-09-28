@@ -23,6 +23,7 @@ dependencies = [
     "rapidfuzz>=3.5",
     "nicknames>=0.1",
     "openai>=1.30",
+    "tabulate>=0.9",
     "jinja2>=3.1",
 ]
 

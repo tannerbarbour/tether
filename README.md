@@ -4,11 +4,13 @@ Explainable, AI-assisted entity resolution built on [Splink](https://moj-analyti
 (Fellegi-Sunter probabilistic record linkage), for linking provider, organization, employee and
 vendor records across sources that share no unique identifier.
 
-**Status: pilot, Phase 1 (skeleton, config, field types, profiles, synthetic data).**
+**Status: pilot, Phase 2 (matching, clustering, crosswalk, baseline comparison).**
 
 ```bash
 pip install -e ".[dev]"
 tether generate-synthetic --out engagements/example/data
+tether run --config engagements/example/config.yaml
+tether evaluate --config engagements/example/config.yaml --truth engagements/example/data/truth.csv
 pytest
 ```
 

@@ -1,0 +1,38 @@
+source: roster
+profile: provider
+status: approved
+version: 1
+record_id_column: Provider ID
+columns:
+  - source_column: Provider Name
+    target: name
+    confidence: 0.98
+    rationale: Full personal name, sometimes "Last, First" with credentials
+  - source_column: NPI
+    target: npi
+    confidence: 0.99
+  - source_column: Practice Name
+    target: org
+    confidence: 0.95
+  - source_column: Practice Address
+    target: address
+    confidence: 0.95
+    rationale: Single-line street, city, state ZIP
+  - source_column: Phone
+    target: phone
+    confidence: 0.99
+  - source_column: Email
+    target: email
+    confidence: 0.99
+  - source_column: Job Title
+    target: title
+    confidence: 0.9
+  - source_column: Tax ID
+    target: ein
+    confidence: 0.9
+    rationale: Employer tax ID (EIN), not the person's SSN
+unmapped:
+  - Credentials
+provenance:
+  created_by: analyst@example.com
+  method: hand-authored (Phase 2 fixture)

@@ -89,6 +89,19 @@ class DeterministicRule:
 
 
 @dataclass(frozen=True)
+class PairConstraint:
+    """A pair is rejected unless at least one of ``comparisons`` agrees above its null/else level.
+
+    This is the explicit antidote to conditional dependence between employer-derived
+    signals: several "same practice" agreements must not add up to a person match when
+    the person's own name disagrees everywhere. Deterministic-rule pairs are exempt.
+    """
+
+    comparisons: tuple[str, ...]
+    description: str = ""
+
+
+@dataclass(frozen=True)
 class HardConstraint:
     """Two records with different non-null values in ``column`` must never share a cluster."""
 
@@ -104,9 +117,11 @@ class EntityProfile:
     description: str
     fields: dict[str, FieldSpec]
     blocking_rules: list[BlockingRule] = field(default_factory=list)
-    training_blocking_rules: list[BlockingRule] = field(default_factory=list)
+    training_blocking_rules: list["BlockingRule | DeterministicRule"] = field(default_factory=list)
+    """EM rounds. A DeterministicRule here is rendered (with guards) as the blocking SQL."""
     deterministic_rules: list[DeterministicRule] = field(default_factory=list)
     hard_constraints: list[HardConstraint] = field(default_factory=list)
+    pair_constraints: list[PairConstraint] = field(default_factory=list)
     max_cluster_size: int = 6
     min_edge_density: float = 0.5
 

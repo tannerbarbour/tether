@@ -120,7 +120,14 @@ class MatchingConfig(_Strict):
     training_blocking_rules: list[list[str] | str] | None = None
     max_pairs_for_u: float = Field(1e6, gt=0)
     em_max_iterations: int = Field(25, ge=1)
-    probability_two_random_records_match: float | None = Field(None, gt=0, lt=1)
+    probability_two_random_records_match: float | None = Field(
+        None, gt=0, lt=1, description="If unset, estimated from the deterministic rules and their assumed recall"
+    )
+    deterministic_rule_recall: float = Field(0.6, gt=0, le=1, description="Assumed recall of deterministic rules")
+    probability_floor: float = Field(
+        1e-3, ge=0, lt=0.5,
+        description="Floor for trained m/u so a level never observed in training cannot get an infinite weight",
+    )
     load_m_from_knowledge_base: bool = True
     save_m_to_knowledge_base: bool = True
     fields: dict[str, FieldOverride] = Field(default_factory=dict)

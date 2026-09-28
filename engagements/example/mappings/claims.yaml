@@ -1,0 +1,48 @@
+source: claims
+profile: provider
+status: approved
+version: 1
+record_id_column: rendering_prov_id
+columns:
+  - source_column: prov_first_name
+    target: name_first
+    confidence: 0.99
+  - source_column: prov_middle
+    target: name_middle
+    confidence: 0.95
+  - source_column: prov_last_name
+    target: name_last
+    confidence: 0.99
+  - source_column: rendering_npi
+    target: npi
+    confidence: 0.99
+  - source_column: billing_org
+    target: org
+    confidence: 0.9
+    rationale: Billing organization; treated as employer / practice
+  - source_column: billing_ein
+    target: ein
+    confidence: 0.95
+  - source_column: addr_line1
+    target: address_street
+    confidence: 0.95
+  - source_column: city
+    target: address_city
+    confidence: 0.99
+  - source_column: state
+    target: address_state
+    confidence: 0.99
+  - source_column: zip
+    target: address_zip
+    confidence: 0.99
+  - source_column: phone_number
+    target: phone
+    confidence: 0.99
+  - source_column: specialty
+    target: title
+    confidence: 0.7
+    rationale: Specialty column carries role/title-like values
+unmapped: []
+provenance:
+  created_by: analyst@example.com
+  method: hand-authored (Phase 2 fixture)

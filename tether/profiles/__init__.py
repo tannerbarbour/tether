@@ -8,6 +8,7 @@ from tether.profiles.base import (
     FieldSpec,
     Guard,
     HardConstraint,
+    PairConstraint,
     get_profile,
     list_profiles,
     register_profile,
@@ -16,5 +17,5 @@ from tether.profiles import organization, provider  # noqa: E402,F401
 
 __all__ = [
     "BlockingRule", "DeterministicRule", "EntityProfile", "FieldRole", "FieldSpec", "Guard",
-    "HardConstraint", "get_profile", "list_profiles", "register_profile",
+    "HardConstraint", "PairConstraint", "get_profile", "list_profiles", "register_profile",
 ]

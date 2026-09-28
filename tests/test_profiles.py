@@ -10,7 +10,7 @@ def test_profiles_registered():
 def test_provider_profile_shape():
     p = get_profile("provider")
     assert p.fields["npi"].role == "identifier"
-    assert p.fields["ein"].role == "supporting"
+    assert p.fields["ein"].role == "report_only" and p.fields["phone"].role == "supporting"
     assert "title" not in p.model_fields()
     assert "name_first" in p.canonical_columns() and "address_zip" in p.canonical_columns()
     assert p.hard_constraints[0].column == "npi_std"
@@ -22,7 +22,7 @@ def test_provider_blocking_and_training_rules_reference_derived_columns():
     fts = p.instantiate_fields()
     derived = {c for f, ft in fts.items() for c in ft.output_columns(f)}
     for rule in p.blocking_rules + p.training_blocking_rules:
-        for col in rule.columns:
+        for col in getattr(rule, "columns", None) or getattr(rule, "match_columns", ()):
             assert col in derived, col
 
 
